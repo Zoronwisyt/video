@@ -1,0 +1,43 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build for a physical iPhone or iPad
+        run: >-
+          xcodebuild
+          -project ZoronVideoExporter.xcodeproj
+          -scheme ZoronVideoExporter
+          -sdk iphoneos
+          -configuration Release
+          -derivedDataPath build
+          CODE_SIGNING_ALLOWED=NO
+          CODE_SIGNING_REQUIRED=NO
+          build
+
+      - name: Package unsigned IPA for Sideloadly
+        run: |
+          APP_PATH="$(find build/Build/Products/Release-iphoneos -type d -name 'ZoronVideoExporter.app' -print -quit)"
+          test -n "$APP_PATH"
+          mkdir Payload
+          cp -R "$APP_PATH" Payload/
+          zip -qry ZoronVideoExporter-unsigned.ipa Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZoronVideoExporter-unsigned-ipa
+          path: ZoronVideoExporter-unsigned.ipa
